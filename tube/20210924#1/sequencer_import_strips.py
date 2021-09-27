@@ -1,13 +1,35 @@
+#
+#  To integrate it in the sequencer/add menu
+#
+#    1. register this operator.
+#       - copy this file to ./scripts/startup/bl_operators/
+#       - entry this file in ./scripts/startup/bl_operators/__init__.py
+#         but assigning the name without extension ".py"
+#
+#           "sequencer",
+#           "sequencer_import_strips",   <--- like this
+#           "spreadsheet",
+#       
+#    2. modify the sequencer menu
+#       - edit the file ./scripts/startup/bl_ui/space_sequencer.py
+#       - at the below of SEQUENCER_MT_add class declaration
+#
+#           layout.operator("sequencer.movie_strip_add", text="Movie", icon='FILE_MOVIE')
+#           layout.operator("sequencer.sound_strip_add", text="Sound", icon='FILE_SOUND')
+#           layout.operator("sequencer.image_strip_add", text="Image/Sequence", icon='FILE_IMAGE')
+#
+#           layout.separator()                                                                 <--- like this
+#           layout.operator('sequencer.import_strips', text="Import Strips", icon='IMPORT')    <--- like this
+#
+#           layout.separator()
+#
+#           layout.operator_context = 'INVOKE_REGION_WIN'
+#           layout.operator("sequencer.effect_strip_add", text="Color", icon='COLOR').type = 'COLOR'
+#           layout.operator("sequencer.effect_strip_add", text="Text", icon='FONT_DATA').type = 'TEXT'
+#
+
 import bpy
 from bpy_extras.io_utils import ImportHelper
-
-#
-#   to include it in the sequencer/add menu
-#   add the below lines at 627 in "space_sequencer.py"
-#
-#   layout.separator()
-#   layout.operator('sequencer.import_strips', text="Import Strips", icon='IMPORT')
-#
 
 class SequencerImportStrips(bpy.types.Operator, ImportHelper):
     bl_description = 'import movie/sound/image strips'
