@@ -1,8 +1,8 @@
 bl_info = {
     'name': 'Slide Show Tools',
     'author': 'Meta Person',
-    'version': (0, 5),
-    'blender': (2, 80, 0),
+    'version': (0, 6),
+    'blender': (5, 2, 3),
     'description': 'Slide Show Tools for Blender VSE',
     'category': 'Sequencer',
 }
@@ -13,32 +13,32 @@ class StripRelocation:
     def __init__(self, strip):
         self.strip = strip
         self.channel = strip.channel
-        self.frame_final_start = strip.frame_final_start
-        self.frame_final_duration = strip.frame_final_duration
+        self.left_handle = strip.left_handle
+        self.duration = strip.duration
         
     def check_collision(self, strip):
         if self.channel != strip.channel:
             return False
-        if self.frame_final_start > strip.frame_final_start:
-            if self.frame_final_start >= (strip.frame_final_start + strip.frame_final_duration):
+        if self.left_handle > strip.left_handle:
+            if self.left_handle >= (strip.left_handle + strip.duration):
                 return False
-        elif self.frame_final_start < strip.frame_final_start:
-            if (self.frame_final_start + self.frame_final_duration) <= strip.frame_final_start:
+        elif self.left_handle < strip.left_handle:
+            if (self.left_handle + self.duration) <= strip.left_handle:
                 return False
         return True
 
     def check_need_to_relocate(self):
-        if self.frame_final_start != self.strip.frame_final_start:
+        if self.left_handle != self.strip.left_handle:
             return True
         if self.channel != self.strip.channel:
             return True
         return False
 
     def relocate(self):
-        frame_movement = self.frame_final_start - self.strip.frame_final_start
+        frame_movement = self.left_handle - self.strip.left_handle
         channel_movement = self.channel - self.strip.channel
         # bpy.ops.transform.seq_slide(value=(frame_movement, channel_movement))
-        (self.strip.frame_start, self.strip.channel) = (self.strip.frame_start + frame_movement,
+        (self.strip.content_start, self.strip.channel) = (self.strip.content_start + frame_movement,
                                                         self.strip.channel + channel_movement)
         
 
@@ -61,7 +61,7 @@ class SLIDE_TOOLS_OT_align_strips(bpy.types.Operator):
         # get selected strips.
         relocations = list()
         unselected_strips = list()
-        for strip in context.sequences:
+        for strip in context.strips:
             if strip.select:
                 strip_relocation = StripRelocation(strip)
                 relocations.append(strip_relocation)
@@ -74,15 +74,15 @@ class SLIDE_TOOLS_OT_align_strips(bpy.types.Operator):
             return {'CANCELLED'}
 
         # sort the strips by the order of the frame number.
-        relocations = sorted(relocations, key=lambda x: (x.strip.frame_final_start + x.strip.frame_final_end), reverse=False)
+        relocations = sorted(relocations, key=lambda x: (x.strip.left_handle + x.strip.right_handle), reverse=False)
 
         # calc the start frame and channel of the strip for relocating it.
         previous_relocation = None
         first_relocation = None
         for idx, relocation in enumerate(relocations):
             if previous_relocation:
-                relocation.frame_final_start = previous_relocation.frame_final_start \
-                                             + previous_relocation.frame_final_duration \
+                relocation.left_handle = previous_relocation.left_handle \
+                                             + previous_relocation.duration \
                                              - self.frame_overlap
                 if self.frame_overlap > 0:
                     if idx % 2:
@@ -149,18 +149,18 @@ class SLIDE_TOOLS_OT_cross_strips(bpy.types.Operator):
 
     @staticmethod
     def check_overlaped(strip1, strip2):
-        if strip1.frame_final_start > strip2.frame_final_start:
-            if strip1.frame_final_start >= strip2.frame_final_end:
+        if strip1.left_handle > strip2.left_handle:
+            if strip1.left_handle >= strip2.right_handle:
                 return False
-        elif strip1.frame_final_start < strip2.frame_final_start:
-            if strip1.frame_final_end <= strip2.frame_final_start:
+        elif strip1.left_handle < strip2.left_handle:
+            if strip1.right_handle <= strip2.left_handle:
                 return False
         return True
 
     def execute(self, context):
         # get selected strips.
         strips = list()
-        for strip in context.sequences:
+        for strip in context.strips:
             if strip.select:
                 strips.append(strip)
 
@@ -170,7 +170,7 @@ class SLIDE_TOOLS_OT_cross_strips(bpy.types.Operator):
             return {'CANCELLED'}
 
         # sort the strips by the order of the frame number.
-        strips = sorted(strips, key=lambda x: (x.frame_final_start + x.frame_final_end), reverse=False)
+        strips = sorted(strips, key=lambda x: (x.left_handle + x.right_handle), reverse=False)
 
         # adds the effect between the two consecutive and overlapped strips.
         previous_strip = None
@@ -178,11 +178,11 @@ class SLIDE_TOOLS_OT_cross_strips(bpy.types.Operator):
         for strip in strips:
             if previous_strip:
                 if __class__.check_overlaped(previous_strip, strip):
-                    context.scene.sequence_editor.sequences.new_effect(
+                    context.scene.sequence_editor.strips.new_effect(
                         name='Cross', type='CROSS',
                         channel = max(previous_strip.channel, strip.channel) + 1,
                         frame_start = 0,
-                        seq1=previous_strip, seq2=strip)
+                        input1=previous_strip, input2=strip)
                     effect_count += 1
             previous_strip = strip
 
